@@ -18,6 +18,12 @@ function f(x)
     return x;
 }
 
+function f_pom(x)
+{
+    if(x - Math.PI >= 0) return x - Math.PI;
+    return x + Math.PI;
+}
+
 function f_sin(f, n, x)
 {
     return f(x) * sin(n * x);
@@ -70,7 +76,7 @@ function setup()
     slider2.style('width', '80px');
 }
 
-function draw()
+function draw() 
 {
     background(255);
 
@@ -105,7 +111,7 @@ function draw()
 
     if(time > 2 * Math.PI) time = 0;
 
-    funkcija.unshift(scalar * f(time));
+    funkcija.unshift(scalar * f_pom(time) - 156);
 
     wave.unshift(y);
 
@@ -126,11 +132,12 @@ function draw()
     noFill();
     for(let i = 0; i < funkcija.length; i++)
     {
-        vertex(i, funkcija[i]);
+        vertex(i, funkcija[i]);   
     }
     endShape();
-    
     time += slider2.value() / 1000;
+
+    if (wave.length > 10) prvi = 10;
 
     if(wave.length > 1000)
     {
