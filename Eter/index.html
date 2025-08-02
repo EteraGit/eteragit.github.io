@@ -285,10 +285,10 @@ header nav ul li a:hover {
             <h1>Interpreter za parcijalno rekurzivne funkcije</h1>
             <textarea id="test-input" placeholder="Unesite kod ovdje..."></textarea>
             <div class="buttons">
-                <button class="but" py-click="obrisi()" id="obrisi" style="margin-left: 15px;">Obriši kod</button>
+                <button class="but" py-click="obrisi" id="obrisi" style="margin-left: 15px;">Obriši kod</button>
                 <button class="but" id="insert-text-button1">Jednostavni program</button>
                 <button class="but" id="insert-text-button2">Složeni program</button>
-                <button id="submit-button" class="but" py-click="start()" style="margin-left: 40px; background-color: rgb(26, 26, 195);">
+                <button id="submit-button" class="but" py-click="start" style="margin-left: 40px; background-color: rgb(26, 26, 195);">
                     Interpretiraj!
                 </button>
                 <div style="padding: 10px 10px; text-align: center;">
@@ -319,7 +319,7 @@ header nav ul li a:hover {
                 </table>
             </div>
             <br>
-            <button class="but" py-click="reset_funkcije()">Obriši sve funkcije!</button>
+            <button class="but" py-click="reset_funkcije">Obriši sve funkcije!</button>
         </div>
     </div>
     <div id="tree-container">
@@ -333,7 +333,7 @@ header nav ul li a:hover {
         files = ["vepar.py", "Token.py", "Lekser.py",  "Parser.py", "AST.py"]
     </py-config>
 
-    <py-script>
+    <script type="py">
         from vepar import *
         from AST import *
         from Lekser import *
@@ -341,15 +341,18 @@ header nav ul li a:hover {
         from Parser import *
         import json
         from js import document
-    </py-script>
+    </script>
 
-    <py-script>
-        def obrisi():
-            Element('test-input').element.value = ""
+    <script type="py">
+        from pyscript import document
+        from pyodide.ffi import create_proxy
 
-        def start():
-            Element('test-output').element.innerHTML = ""
-            ulaz = Element('test-input').element.value + "\n"
+        def obrisi(e):
+            document.querySelector('#test-input').value = ""
+
+        def start(e):
+            document.querySelector('#test-output').innerHTML = ""
+            ulaz = document.querySelector('#test-input').value + "\n"
             ulaz = ulaz.split('\n')
             naredbe = []
             for linija in ulaz:
@@ -363,38 +366,79 @@ header nav ul li a:hover {
                 try:
                     naredbe.append(P(linija))
                 except Exception as e:
-                    Element('test-output').element.innerHTML += "Sintaksna greška: " + str(e) + "\n"
+                    document.querySelector('#test-output').innerHTML += "Sintaksna greška: " + str(e) + "\n"
             ast = Program(naredbe)
             ast.stablo()
             root = ast
             tree_data = tree_to_json(root)
             json_data = json.dumps(tree_data)
 
-            script_element = Element('tree-data').element
+            script_element = document.querySelector('#tree-data')
             script_element.text = json.dumps(json_data)
 
-            Element('test-output').element.innerHTML += ast.izvrši()
+            document.querySelector('#test-output').innerHTML += ast.izvrši()
             updateTable()
 
         def updateTable():
-            table = Element('funkcijeTable').element
-            table.innerHTML = ""
-            tablehtml = "&lt;table&gt;&lt;tr&gt;&lt;th&gt;Funkcije&lt;/th&gt;&lt;th&gt;Argumenti&lt;/th&gt;&lt;th&gt;Izraz&lt;/th&gt;&lt;th&gt;Brisanje&lt;/th&gt;&lt;/tr&gt;"
-            for i,f in enumerate(rt.funkcijeAST.podaci.keys()):
-                if f != 'Z' and f != 'Sc' and '#Base' not in f and '#Step' not in f:
-                    fun_str = f' py-click="fun = \'{f}\'; izbrisiFunkciju(fun); updateTable()"'
-                    args = []
-                    for arg in rt.funkcijeAST[f].parametri:
-                        args.append(arg.sadržaj)
-                    arg_str = "(" + ','.join(args) + ")"
-                    tablehtml += "&lt;tr&gt;"
-                    tablehtml += "&lt;td&gt;" + f + "&lt;/td&gt;"
-                    tablehtml += "&lt;td&gt;" + arg_str + "&lt;/td&gt;"
-                    tablehtml += "&lt;td&gt;" + rt.funkcijeAST[f].izr + "&lt;/td&gt;"
-                    tablehtml += "&lt;td&gt;&lt;div class='button-container'&gt;&lt;button class='but'" + fun_str + "&gt;Izbriši&lt;/button&gt;&lt;/div&gt;&lt;/td&gt;"
-                    tablehtml += "&lt;/tr&gt;"
-            tablehtml += "&lt;/table&gt;"
-            table.innerHTML = tablehtml
+            table = document.querySelector('#funkcijeTable')
+
+            # Clear existing rows
+            while table.firstChild:
+                table.removeChild(table.firstChild)
+
+            # Create and append header row
+            header_row = document.createElement('tr')
+            headers = ['Funkcije', 'Argumenti', 'Izraz', 'Brisanje']
+            for header in headers:
+                th = document.createElement('th')
+                th.textContent = header
+                header_row.appendChild(th)
+            table.appendChild(header_row)
+
+            # Loop through functions and create table rows
+            for i, f in enumerate(rt.funkcijeAST.podaci.keys()):
+                if f in ('Z', 'Sc') or '#Base' in f or '#Step' in f:
+                    continue
+
+                row = document.createElement('tr')
+
+                # Funkcija name
+                fname_td = document.createElement('td')
+                fname_td.textContent = f
+                row.appendChild(fname_td)
+
+                # Argumenti
+                args_td = document.createElement('td')
+                args = [arg.sadržaj for arg in rt.funkcijeAST[f].parametri]
+                args_td.textContent = f"({', '.join(args)})"
+                row.appendChild(args_td)
+
+                # Izraz
+                izraz_td = document.createElement('td')
+                izraz_td.innerHTML = rt.funkcijeAST[f].izr
+                row.appendChild(izraz_td)
+
+                # Brisanje button
+                del_td = document.createElement('td')
+                btn_container = document.createElement('div')
+                btn_container.classList.add('button-container')
+
+                delete_button = document.createElement('button')
+                delete_button.classList.add('but')
+                delete_button.textContent = 'Izbriši'
+
+                def make_delete_callback(fname):
+                    def callback(evt):
+                        izbrisiFunkciju(fname)
+                        updateTable()
+                    return create_proxy(callback)
+
+                delete_button.addEventListener("click", make_delete_callback(f))
+                btn_container.appendChild(delete_button)
+                del_td.appendChild(btn_container)
+                row.appendChild(del_td)
+
+                table.appendChild(row)
 
         def izbrisiFunkciju(f):
             del rt.funkcijeAST[f]
@@ -403,7 +447,7 @@ header nav ul li a:hover {
             if f + "#Step" in rt.funkcijeAST.podaci.keys():
                 del rt.funkcijeAST[f + "#Step"]
 
-        def reset_funkcije():
+        def reset_funkcije(e):
             rt.funkcijeAST = Memorija()
             updateTable()
 
@@ -416,7 +460,7 @@ header nav ul li a:hover {
             }
         json_data = None
             
-    </py-script>
+    </script>
 
     <script type="text/javascript">
 $(document).ready(function(){
@@ -436,11 +480,6 @@ console.log = function(message) {
 
 var tableContainer = $(".table-container");
 });
-
-function reset_funkcije(i)
-{
-    console.log(i);
-}
 
 document.addEventListener("DOMContentLoaded", function() {
     var submitButton = document.getElementById("submit-button");
